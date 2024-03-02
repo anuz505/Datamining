@@ -1,0 +1,334 @@
+# Load necessary libraries
+library(e1071)
+library(ggplot2)
+library(gridExtra)
+library(reshape2)
+library(caret)
+library(class)
+library(rpart)
+
+# Load the heart disease dataset
+dataset <- read.csv("heart.csv")
+
+
+# Display the first few rows of the dataset
+head(dataset)
+dim(dataset)
+# Summary statistics of the dataset
+summary(dataset)
+str(dataset)
+
+# Count missing values in each column
+missing_count <- colSums(is.na(dataset))
+print(missing_count)
+
+#corr, scatter plot visualizagtion pre
+
+# Scatter plot with regression line for cholesterol and age
+chol_age_plot <- ggplot(dataset, aes(x = age, y = chol)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +  # Add regression line
+  labs(title = "Linear Relationship between Cholesterol and Age", x = "Age", y = "Cholesterol")
+
+# Scatter plot with regression line for maximum heart rate achieved and age
+thalach_age_plot <- ggplot(dataset, aes(x = age, y = thalach)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +  # Add regression line
+  labs(title = "Linear Relationship between Maximum Heart Rate Achieved and Age", x = "Age", y = "Maximum Heart Rate")
+
+# Scatter plot with regression line for resting blood pressure and age
+trestbps_age_plot <- ggplot(dataset, aes(x = age, y = trestbps)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "green") +  # Add regression line
+  labs(title = "Linear Relationship between Resting Blood Pressure and Age", x = "Age", y = "Resting Blood Pressure")
+
+# Scatter plot with regression line for ST depression induced by exercise and age
+oldpeak_age_plot <- ggplot(dataset, aes(x = age, y = oldpeak)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "purple") +  # Add regression line
+  labs(title = "Linear Relationship between ST Depression and Age", x = "Age", y = "ST Depression")
+
+# Arrange plots in a grid
+
+grid.arrange(chol_age_plot, thalach_age_plot, trestbps_age_plot, oldpeak_age_plot, nrow = 2)
+
+
+# Calculate the correlation matrix
+correlation_matrix <- cor(dataset[, -14])
+
+# Print the correlation matrix
+print(correlation_matrix)
+
+# Melt the correlation matrix
+melted_corr <- melt(correlation_matrix)
+
+# Plot heatmap
+heatmap_plot <- ggplot(data = melted_corr, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab",
+                       name="Correlation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 10, hjust = 1)) +
+  coord_fixed()
+
+# Display the heatmap
+print(heatmap_plot)
+
+
+# Selected relevant columns for analysis
+dataset <- dataset[, c("age", "sex", "cp", "trestbps", "chol", "fbs", "restecg", "thalach", "exang", "oldpeak", "slope", "ca", "thal","target")]
+
+# Plot the distribution of age
+age_plot <- ggplot(dataset, aes(x = age)) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 20) +
+  labs(title = "Distribution of Age", x = "Age", y = "Frequency")
+
+print(age_plot)
+
+
+# Count the frequencies of each sex
+sex_counts <- table(dataset$sex)
+
+# Convert the counts to a data frame
+sex_counts_df <- as.data.frame(sex_counts)
+names(sex_counts_df) <- c("Sex", "Count")
+
+# Create a pie chart
+pie_chart <- ggplot(sex_counts_df, aes(x = "", y = Count, fill = Sex)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  labs(title = "Distribution of Sex", fill = "Sex", y = NULL) +
+  theme_void()
+
+# Display the pie chart
+print(pie_chart)
+
+
+# Plot the distribution of chest pain types (cp)
+cp_plot <- ggplot(dataset, aes(x = factor(cp))) +
+  geom_bar(fill = "red", color = "black") +
+  labs(title = "Distribution of Chest Pain Types", x = "Chest Pain Type", y = "Count")
+
+# Display the chest pain type plot
+print(cp_plot)
+
+# Plot the distribution of resting blood pressure (trestbps)
+trestbps_plot <- ggplot(dataset, aes(x = trestbps)) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 20) +
+  labs(title = "Distribution of Resting Blood Pressure", x = "Resting Blood Pressure (mm Hg)", y = "Frequency")
+
+# Display the resting blood pressure plot
+print(trestbps_plot)
+
+# Plot the distribution of serum cholesterol (chol)
+chol_plot <- ggplot(dataset, aes(x = chol)) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 20) +
+  labs(title = "Distribution of Serum Cholesterol", x = "Serum Cholesterol (mg/dl)", y = "Frequency")
+
+# Display the serum cholesterol plot
+print(chol_plot)
+
+# Plot the distribution of the fbs column
+fbs_plot <- ggplot(dataset, aes(x = factor(fbs))) +
+  geom_bar(fill = "yellow", color = "black") +
+  labs(title = "Distribution of Fasting Blood Sugar Levels", x = "Fasting Blood Sugar", y = "Count") +
+  scale_x_discrete(labels = c("<= 120 mg/dl" = "0", "> 120 mg/dl" = "1"))
+
+# Display the fasting blood sugar levels plot
+print(fbs_plot)
+
+# Plot the distribution of resting electrocardiographic results (restecg)
+restecg_plot <- ggplot(dataset, aes(x = factor(restecg))) +
+  geom_bar(fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Resting Electrocardiographic Results", x = "Resting Electrocardiographic Results", y = "Count")
+
+# Display the resting electrocardiographic results plot
+print(restecg_plot)
+
+# Plot the distribution of maximum heart rate achieved during exercise (thalach)
+thalach_plot <- ggplot(dataset, aes(x = thalach)) +
+  geom_histogram(fill = "grey", color = "black", bins = 20) +
+  labs(title = "Distribution of Maximum Heart Rate Achieved", x = "Maximum Heart Rate Achieved", y = "Frequency")
+
+# Display the maximum heart rate achieved plot
+print(thalach_plot)
+
+# Plot the distribution of exercise-induced angina (exang)
+exang_plot <- ggplot(dataset, aes(x = factor(exang))) +
+  geom_bar(fill = "#2ca02c", color = "black") +
+  labs(title = "Distribution of Exercise-Induced Angina", x = "Exercise-Induced Angina", y = "Count")
+
+# Display the exercise-induced angina plot
+print(exang_plot)
+
+# Plot the distribution of ST depression induced by exercise (oldpeak)
+oldpeak_plot <- ggplot(dataset, aes(x = oldpeak)) +
+  geom_histogram(fill = "#ff7f0e", color = "black", bins = 20) +
+  labs(title = "Distribution of ST Depression Induced by Exercise", x = "ST Depression Induced by Exercise", y = "Frequency")
+
+# Display the ST depression induced by exercise plot
+print(oldpeak_plot)
+
+# Plot the distribution of the slope of the peak exercise ST segment (slope)
+slope_plot <- ggplot(dataset, aes(x = factor(slope))) +
+  geom_bar(fill = "#ffdb58", color = "black") +
+  labs(title = "Distribution of Slope of Peak Exercise ST Segment", x = "Slope", y = "Count")
+
+# Display the slope plot
+print(slope_plot)
+
+# Plot the distribution of the number of major vessels colored by fluoroscopy (ca)
+ca_plot <- ggplot(dataset, aes(x = factor(ca))) +
+  geom_bar(fill = "#17becf", color = "black") +
+  labs(title = "Distribution of Number of Major Vessels Colored by Fluoroscopy", x = "Number of Vessels", y = "Count")
+
+# Display the ca plot
+print(ca_plot)
+
+# Plot the distribution of thalassemia
+thal_plot <- ggplot(dataset, aes(x = factor(thal))) +
+  geom_bar(fill = "#8c564b", color = "black") +
+  labs(title = "Distribution of Thalassemia", x = "Thalassemia Type", y = "Count")
+
+# Display the thalassemia plot
+print(thal_plot)
+
+# Display the first few rows of the modified dataset
+head(dataset)
+
+# Convert the target variable to a factor
+dataset$target = factor(dataset$target,levels=c(0,1))
+
+# Split the dataset into training and test sets
+set.seed(123)
+split <- sample.split(dataset$target, SplitRatio = 0.75)
+training_set <- subset(dataset, split == TRUE)
+test_set <- subset(dataset, split == FALSE)
+
+# Display the first few rows of the training and test sets
+head(training_set)
+head(test_set)
+
+
+# Standardize the numerical features in the training and test sets
+training_set[-14] <- scale(training_set[-14])
+head(training_set)
+test_set[1:13] <- scale(test_set[1:13])
+head(test_set)
+
+
+# K-Nearest Neighbors (KNN) algorithm
+# Make predictions on the test set using KNN
+y_pred <- knn(train = training_set[,-14],
+              test = test_set[,-14],
+              cl = training_set[,14],
+              k = 5,
+              prob = TRUE)
+head(y_pred)
+
+# Compute confusion matrix and performance metrics for KNN
+pm <- confusionMatrix(y_pred, test_set[,14])
+accuracyvr <- pm$overall["Accuracy"]
+precision <- pm$byClass["Pos Pred Value"]
+recall <- pm$byClass["Sensitivity"]
+fscore <- 2 * (precision * recall) / (precision + recall)
+
+# Store KNN performance metrics
+model_metrics <- c(Accuracy = accuracyvr, Precision = precision, Recall = recall, F1_Score = fscore)
+
+# Plot the model performance metrics
+ggplot(data = data.frame(metrics = model_metrics, metric_names = names(model_metrics)), aes(x = metric_names, y = metrics)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "Knn Model Performance Metrics", x = "Metric", y = "Value")
+
+# Plot the class distribution of the target variable
+ggplot(dataset, aes(x = factor(target))) +
+  geom_bar(fill = "skyblue", color = "black") +
+  labs(title = "Class Distribution", x = "Heart Disease", y = "Count")
+
+# Decision Tree algorithm
+# Train a decision tree classifier
+classifier <- rpart(formula = target ~ ., data = training_set)
+# Make predictions on the test set using the decision tree
+y_pred <- predict(classifier, newdata = test_set[-14], type = 'class')
+head(y_pred)
+
+# Compute confusion matrix and performance metrics for the decision tree
+confusion_matrixd <- table(test_set[, 14], y_pred)
+pmdc <- confusionMatrix(y_pred, test_set[,14])
+accuracydc <- pmdc$overall["Accuracy"]
+precisiondc <- pmdc$byClass["Pos Pred Value"]
+recalldc <- pmdc$byClass["Sensitivity"]
+fscoredc <- 2 * (precisiondc * recalldc) / (precisiondc + recalldc)
+
+# Store decision tree performance metrics
+accuracydc
+precisiondc
+recalldc
+fscoredc
+
+# Store Decision tree performance metrics
+model_metricsdc <- c(Accuracy = accuracydc, Precision = precisiondc, Recall = recalldc, F1_Score = fscoredc)
+
+# Plot the model performance metrics
+ggplot(data = data.frame(metrics = model_metricsdc, metric_names = names(model_metrics)), aes(x = metric_names, y = metrics)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "Decision Tree Model Performance Metrics", x = "Metric", y = "Value")
+
+# Naive Bayes algorithm
+# Train a Naive Bayes model
+naive_bayes_model <- naiveBayes(target ~ ., data = training_set)
+# Make predictions on the test set using Naive Bayes
+naive_bayes_pred <- predict(naive_bayes_model, newdata = test_set[-14])
+# Compute confusion matrix and performance metrics for Naive Bayes
+confusion_matrix_nb <- table(test_set[, 14], naive_bayes_pred)
+pmnb <- confusionMatrix(naive_bayes_pred, test_set[,14])
+accuracy_nb <- pmnb$overall["Accuracy"]
+precision_nb <- pmnb$byClass["Pos Pred Value"]
+recall_nb <- pmnb$byClass["Sensitivity"]
+fscore_nb <- 2 * (precision_nb * recall_nb) / (precision_nb + recall_nb)
+
+# Store Naive Bayes performance metrics
+accuracy_nb
+precision_nb
+recall_nb
+fscore_nb
+
+# Store Naive Bayes performance metrics
+model_metricsnb <- c(Accuracy = accuracy_nb, Precision = precision_nb, Recall = recall_nb, F1_Score = fscore_nb)
+
+# Plot the model performance metrics
+ggplot(data = data.frame(metrics = model_metricsnb, metric_names = names(model_metrics)), aes(x = metric_names, y = metrics)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "Naive Bayes Performance Metrics", x = "Metric", y = "Value")
+
+
+
+# Update model metrics with Naive Bayes results
+model_metrics <- cbind(model_metrics, Naive_Bayes = c(accuracy_nb, precision_nb, recall_nb, fscore_nb))
+
+model_metrics
+
+
+
+# Plot histogram of accuracy from all three algorithms
+
+accuracy_values <- c(accuracyvr, accuracydc, accuracy_nb)
+
+accuracy_df <- data.frame(Algorithm = c("KNN", "Decision Tree", "Naive Bayes"), Accuracy = accuracy_values)
+
+
+
+ggplot(accuracy_df, aes(x = Algorithm, y = Accuracy, fill = Algorithm)) +
+  
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
+  
+  labs(title = "Accuracy Comparison of Algorithms", x = "Algorithm", y = "Accuracy") +
+  
+  theme_minimal() +
+  
+  theme(legend.position = "none")
+
+
